@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ heading }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h4 class="mb-3">{{ heading }}</h4>
+        <form method="post">
+          <div class="mb-3">
+            <label class="form-label">Full Name *</label>
+            <input type="text" name="name" class="form-control" maxlength="100"
+                   value="{{ member['name'] if member else '' }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email *</label>
+            <input type="email" name="email" class="form-control" maxlength="120"
+                   value="{{ member['email'] if member else '' }}" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password {% if editing %}(khaali chhodo to purana hi rahega){% else %}* (min 6 characters){% endif %}</label>
+            <input type="password" name="password" class="form-control" {% if not editing %}required{% endif %}>
+          </div>
+          <button class="btn btn-primary">Save</button>
+          <a href="{{ url_for('members.list_members') }}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

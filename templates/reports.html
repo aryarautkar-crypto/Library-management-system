@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+<h3 class="mb-4">Reports</h3>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-4"><div class="card text-bg-warning"><div class="card-body">
+    <h6>Currently Issued</h6><h2>{{ issued_now }}</h2></div></div></div>
+  <div class="col-md-4"><div class="card text-bg-danger"><div class="card-body">
+    <h6>Overdue Books</h6><h2>{{ overdue|length }}</h2></div></div></div>
+  <div class="col-md-4"><div class="card text-bg-success"><div class="card-body">
+    <h6>Total Fine Collected</h6><h2>Rs. {{ fine_collected }}</h2></div></div></div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header">Overdue Books</div>
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead><tr><th>Member</th><th>Email</th><th>Book</th><th>Due Date</th><th>Late</th><th>Fine (abhi tak)</th></tr></thead>
+      <tbody>
+        {% for o in overdue %}
+        <tr>
+          <td>{{ o['member_name'] }}</td><td>{{ o['email'] }}</td><td>{{ o['title'] }}</td>
+          <td>{{ o['due_date'] }}</td><td>{{ o['late_days'] }} din</td><td>Rs. {{ o['fine_now'] }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-3">Koi overdue book nahi hai.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Most Issued Books (Top 5)</div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>Book</th><th>Author</th><th>Times Issued</th></tr></thead>
+          <tbody>
+            {% for b in top_books %}
+            <tr><td>{{ b['title'] }}</td><td>{{ b['author'] }}</td><td>{{ b['times'] }}</td></tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-3">Abhi koi book issue nahi hui.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Out of Stock Books</div>
+      <div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>Book</th><th>Author</th></tr></thead>
+          <tbody>
+            {% for b in out_of_stock %}
+            <tr><td>{{ b['title'] }}</td><td>{{ b['author'] }}</td></tr>
+            {% else %}
+            <tr><td colspan="2" class="text-center text-muted py-3">Sab books available hain.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

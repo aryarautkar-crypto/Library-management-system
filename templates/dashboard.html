@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h3 class="mb-4">Welcome, {{ g.user['name'] }}</h3>
+
+{% if stats %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card text-bg-primary"><div class="card-body">
+      <h6>Total Books</h6><h2>{{ stats.books }}</h2></div></div></div>
+    <div class="col-md-3"><div class="card text-bg-success"><div class="card-body">
+      <h6>Members</h6><h2>{{ stats.members }}</h2></div></div></div>
+    <div class="col-md-3"><div class="card text-bg-warning"><div class="card-body">
+      <h6>Books Issued</h6><h2>{{ stats.issued }}</h2></div></div></div>
+    <div class="col-md-3"><div class="card text-bg-danger"><div class="card-body">
+      <h6>Overdue</h6><h2>{{ stats.overdue }}</h2></div></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Quick Actions</div>
+    <div class="card-body">
+      <a href="{{ url_for('issues.issue_book') }}" class="btn btn-primary me-2 mb-2">Issue a Book</a>
+      <a href="{{ url_for('books.add_book') }}" class="btn btn-outline-primary me-2 mb-2">Add Book</a>
+      <a href="{{ url_for('members.add_member') }}" class="btn btn-outline-primary me-2 mb-2">Add Member</a>
+      <a href="{{ url_for('issues.list_issues', status='overdue') }}" class="btn btn-outline-danger me-2 mb-2">Overdue Books</a>
+      <a href="{{ url_for('reports.reports') }}" class="btn btn-outline-secondary mb-2">Reports</a>
+    </div>
+  </div>
+{% else %}
+  <div class="card">
+    <div class="card-header">Meri Issued Books</div>
+    <div class="card-body">
+      {% if my_books %}
+        <div class="table-responsive">
+        <table class="table mb-0">
+          <thead><tr><th>Book</th><th>Issue Date</th><th>Due Date</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for b in my_books %}
+            <tr>
+              <td>{{ b['title'] }}</td>
+              <td>{{ b['issue_date'] }}</td>
+              <td>{{ b['due_date'] }}</td>
+              <td>
+                {% if b['late_days'] > 0 %}
+                  <span class="badge text-bg-danger">{{ b['late_days'] }} din late, fine Rs. {{ b['fine_now'] }}</span>
+                {% else %}
+                  <span class="badge text-bg-primary">On time</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+      {% else %}
+        <p class="mb-0">Abhi koi book issue nahi hai.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

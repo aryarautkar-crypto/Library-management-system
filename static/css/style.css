@@ -1,0 +1,4 @@
+/* Chhoti custom styling (baaki design Bootstrap se aata hai) */
+.card { border-radius: 10px; }
+.navbar-brand { font-weight: 600; letter-spacing: 0.3px; }
+table th { white-space: nowrap; }
