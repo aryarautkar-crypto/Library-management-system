@@ -1,52 +1,49 @@
 {% extends "base.html" %}
-{% block title %}Issue a Book{% endblock %}
+{% block title %}Issue a book{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-7">
-    <div class="card shadow-sm">
-      <div class="card-body p-4">
-        <h4 class="mb-3">Issue a Book</h4>
-
-        {% if not members %}
-          <div class="alert alert-warning">Pehle koi member add karo. <a href="{{ url_for('members.add_member') }}">Add Member</a></div>
-        {% elif not books %}
-          <div class="alert alert-warning">Abhi koi book available nahi hai.</div>
-        {% else %}
-        <form method="post">
-          <div class="mb-3">
-            <label class="form-label">Member *</label>
-            <select name="user_id" class="form-select" required>
-              <option value="">-- Member chuno --</option>
-              {% for m in members %}
-                <option value="{{ m['user_id'] }}" {% if form and form.get('user_id') == m['user_id']|string %}selected{% endif %}>
-                  {{ m['name'] }} ({{ m['email'] }})
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Book *</label>
-            <select name="book_id" class="form-select" required>
-              <option value="">-- Book chuno --</option>
-              {% for b in books %}
-                <option value="{{ b['book_id'] }}" {% if form and form.get('book_id') == b['book_id']|string %}selected{% endif %}>
-                  {{ b['title'] }} - {{ b['author'] }} ({{ b['available_copies'] }} available)
-                </option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Kitne din ke liye? *</label>
-            <input type="number" name="days" min="1" max="60" class="form-control"
-                   value="{{ form.get('days') if form else loan_days }}" required>
-            <div class="form-text">Ek member max {{ max_books }} books le sakta hai. Late hone par Rs. {{ fine_per_day }} per din fine.</div>
-          </div>
-          <button class="btn btn-primary">Issue Book</button>
-          <a href="{{ url_for('issues.list_issues') }}" class="btn btn-outline-secondary">Cancel</a>
-        </form>
-        {% endif %}
-      </div>
-    </div>
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Issue a book</h1>
+    <p class="page-sub">A member can hold up to {{ max_books }} books. Late returns cost Rs. {{ fine_per_day }} per day.</p>
   </div>
 </div>
+
+{% if not members %}
+  <div class="panel form-card"><div class="empty"><strong>There are no members yet</strong><a href="{{ url_for('members.add_member') }}">Add a member</a> first, then come back to issue a book.</div></div>
+{% elif not books %}
+  <div class="panel form-card"><div class="empty"><strong>No copies are available</strong>Every book is on loan right now. Return a book or <a href="{{ url_for('books.add_book') }}">add a new one</a>.</div></div>
+{% else %}
+<form method="post" class="panel form-card">
+  <div class="panel-body">
+    <div class="mb-3">
+      <label class="form-label" for="user_id">Member *</label>
+      <select id="user_id" name="user_id" class="form-select" required>
+        <option value="">Choose a member</option>
+        {% for m in members %}
+          <option value="{{ m['user_id'] }}" {% if form and form.get('user_id') == m['user_id']|string %}selected{% endif %}>{{ m['name'] }} ({{ m['email'] }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="book_id">Book *</label>
+      <select id="book_id" name="book_id" class="form-select" required>
+        <option value="">Choose a book</option>
+        {% for b in books %}
+          <option value="{{ b['book_id'] }}" {% if form and form.get('book_id') == b['book_id']|string %}selected{% endif %}>{{ b['title'] }}, {{ b['author'] }} ({{ b['available_copies'] }} available)</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="days">Loan period (days) *</label>
+      <input type="number" id="days" name="days" min="1" max="60" class="form-control"
+             value="{{ form.get('days') if form else loan_days }}" required>
+      <div class="field-hint">Between 1 and 60 days.</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary">Issue book</button>
+      <a href="{{ url_for('issues.list_issues') }}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </div>
+</form>
+{% endif %}
 {% endblock %}

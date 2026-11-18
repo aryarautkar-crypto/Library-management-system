@@ -1,0 +1,10 @@
+{% if pg.pages > 1 %}
+<nav class="pager" aria-label="Pages">
+  <span class="pager-info">Showing {{ pg.first }} to {{ pg.last }} of {{ pg.total }}</span>
+  <span class="pager-links">
+    {% if pg.has_prev %}<a class="btn btn-sm btn-outline-secondary" href="{{ pg.url(pg.page - 1) }}">Previous</a>{% endif %}
+    <span class="pager-page">Page {{ pg.page }} of {{ pg.pages }}</span>
+    {% if pg.has_next %}<a class="btn btn-sm btn-outline-secondary" href="{{ pg.url(pg.page + 1) }}">Next</a>{% endif %}
+  </span>
+</nav>
+{% endif %}

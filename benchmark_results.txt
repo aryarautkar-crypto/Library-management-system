@@ -1,0 +1,22 @@
+Library Management System: performance benchmark
+Data: 5000 books, 1000 members, 10000 loans. Each time is the median of 3 requests.
+
+1. Pagination: all rows on one page vs 15 rows per page
+-------------------------------------------------------
+Page                 All rows  15 per page  Faster by    HTML before   HTML after
+Book list            163.5 ms      10.0 ms      16.4x        3826 KB        16 KB
+Book search           25.7 ms      31.4 ms       0.8x          12 KB        12 KB
+Member list           74.6 ms      61.6 ms       1.2x         653 KB        14 KB
+Loan list            309.9 ms      14.9 ms      20.8x        5651 KB        12 KB
+Overdue loans         83.3 ms      17.3 ms       4.8x        1183 KB        16 KB
+Dashboard             12.1 ms      13.5 ms       0.9x           8 KB         8 KB
+Reports               53.0 ms      52.7 ms       1.0x          21 KB        21 KB
+
+2. Database indexes: without vs with
+------------------------------------
+Page               No indexes      Indexes  Faster by
+Book list             13.5 ms      11.2 ms       1.2x
+Member list            9.3 ms      17.1 ms       0.5x
+Overdue loans         15.5 ms      15.2 ms       1.0x
+Dashboard             26.3 ms      21.0 ms       1.3x
+Reports               72.2 ms      75.9 ms       1.0x

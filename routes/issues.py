@@ -1,22 +1,28 @@
 """Module 4: Issue / Return + Fine.
-Admin: book issue/return karta hai. Member: sirf apni issue history dekhta hai."""
+Admin: issues and returns books. Member: sees only their own loan history."""
 from datetime import date, datetime, timedelta
 import mysql.connector
 from flask import (Blueprint, abort, flash, g, redirect, render_template,
                    request, url_for)
 from db import fetch_all, fetch_one, get_db
+from pagination import paginate
 from routes.auth import admin_required, login_required
 
 issues_bp = Blueprint("issues", __name__, url_prefix="/issues")
 
-# Library ke rules (yaha se badal sakte ho)
-FINE_PER_DAY = 5      # due date ke baad har din ka fine (Rs.)
-LOAN_DAYS = 14        # default kitne din ke liye book milti hai
-MAX_BOOKS = 3         # ek member ek saath kitni books le sakta hai
+# Library rules (change them here)
+FINE_PER_DAY = 5      # fine in Rs. for each day after the due date
+LOAN_DAYS = 14        # default loan period in days
+MAX_BOOKS = 3         # most books one member can hold at a time
+
+
+def plural(count, word):
+    """1 day, 2 days"""
+    return "%d %s%s" % (count, word, "" if count == 1 else "s")
 
 
 def to_date(value):
-    """DB se aayi value ko date me badalta hai."""
+    """Turn a value read from the database into a date."""
     if isinstance(value, datetime):
         return value.date()
     if isinstance(value, date):
@@ -25,7 +31,7 @@ def to_date(value):
 
 
 def overdue_info(due_date, return_date=None):
-    """(late_days, fine) return karta hai. Return nahi hui to aaj tak ka hisaab."""
+    """Return (late_days, fine). If the book is not returned yet, count up to today."""
     due = to_date(due_date)
     end = to_date(return_date) if return_date else date.today()
     days = max((end - due).days, 0)
@@ -33,33 +39,61 @@ def overdue_info(due_date, return_date=None):
 
 
 # ---------- List / History ----------
+STATUSES = ("all", "issued", "overdue", "returned")
+
+
 @issues_bp.route("/")
 @login_required
 def list_issues():
     status = request.args.get("status", "all")
-    sql = """SELECT issues.*, books.title, users.name AS member_name
-             FROM issues
-             JOIN books ON books.book_id = issues.book_id
-             JOIN users ON users.user_id = issues.user_id"""
-    params = ()
-    if g.user["role"] != "admin":          # member sirf apne records dekhe
-        sql += " WHERE issues.user_id = %s"
-        params = (g.user["user_id"],)
-    sql += " ORDER BY issues.issue_id DESC"
+    if status not in STATUSES:
+        status = "all"
+    today = date.today().isoformat()
+    only_mine = g.user["role"] != "admin"          # a member sees only their own records
 
-    rows = []
-    for row in fetch_all(sql, params):
-        row["late_days"], row["fine_now"] = overdue_info(row["due_date"], row["return_date"])
-        row["is_overdue"] = row["return_date"] is None and row["late_days"] > 0
-        if status == "issued" and row["return_date"] is not None:
-            continue
-        if status == "returned" and row["return_date"] is None:
-            continue
-        if status == "overdue" and not row["is_overdue"]:
-            continue
-        rows.append(row)
+    # One query gives the numbers for all four filter tabs
+    counts_sql = """SELECT COUNT(*) AS total_all,
+                           COALESCE(SUM(return_date IS NULL), 0) AS total_issued,
+                           COALESCE(SUM(return_date IS NULL AND due_date < %s), 0) AS total_overdue,
+                           COALESCE(SUM(return_date IS NOT NULL), 0) AS total_returned
+                    FROM issues"""
+    counts_params = [today]
+    if only_mine:
+        counts_sql += " WHERE user_id = %s"
+        counts_params.append(g.user["user_id"])
+    row = fetch_one(counts_sql, tuple(counts_params))
+    counts = {"all": int(row["total_all"]), "issued": int(row["total_issued"]),
+              "overdue": int(row["total_overdue"]), "returned": int(row["total_returned"])}
 
-    return render_template("issues/list.html", issues=rows, status=status, fine_per_day=FINE_PER_DAY)
+    # The filter runs in SQL, so only one page of rows is loaded
+    conditions, params = [], []
+    if only_mine:
+        conditions.append("issues.user_id = %s")
+        params.append(g.user["user_id"])
+    if status == "issued":
+        conditions.append("issues.return_date IS NULL")
+    elif status == "overdue":
+        conditions.append("issues.return_date IS NULL AND issues.due_date < %s")
+        params.append(today)
+    elif status == "returned":
+        conditions.append("issues.return_date IS NOT NULL")
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    pg = paginate(counts[status])
+    rows = fetch_all(
+        """SELECT issues.*, books.title, users.name AS member_name
+           FROM issues
+           JOIN books ON books.book_id = issues.book_id
+           JOIN users ON users.user_id = issues.user_id """ + where +
+        " ORDER BY issues.issue_id DESC LIMIT %s OFFSET %s",
+        tuple(params) + (pg.per_page, pg.offset),
+    )
+    for r in rows:
+        r["late_days"], r["fine_now"] = overdue_info(r["due_date"], r["return_date"])
+        r["is_overdue"] = r["return_date"] is None and r["late_days"] > 0
+
+    return render_template("issues/list.html", issues=rows, status=status, counts=counts,
+                           pg=pg, fine_per_day=FINE_PER_DAY)
 
 
 # ---------- Issue a book ----------
@@ -76,10 +110,10 @@ def issue_book():
             days = int(form.get("days", LOAN_DAYS))
         except ValueError:
             user_id = book_id = days = None
-            error = "Member, book aur din sahi se chuno."
+            error = "Choose a member, a book, and the number of days."
 
         if error is None and not (1 <= days <= 60):
-            error = "Din 1 se 60 ke beech me hone chahiye."
+            error = "Loan period must be between 1 and 60 days."
 
         if error is None:
             member = fetch_one("SELECT * FROM users WHERE user_id=%s AND role='member'", (user_id,))
@@ -90,24 +124,24 @@ def issue_book():
                 "SELECT COUNT(*) AS total FROM issues WHERE user_id=%s AND book_id=%s AND return_date IS NULL",
                 (user_id, book_id))
             if member is None or book is None:
-                error = "Member ya book nahi mili."
+                error = "Member or book not found."
             elif holding["total"] >= MAX_BOOKS:
-                error = "Is member ke paas pehle se %d books hain (limit %d)." % (holding["total"], MAX_BOOKS)
+                error = "This member already has %d books (limit %d)." % (holding["total"], MAX_BOOKS)
             elif same_book["total"] > 0:
-                error = "Ye book is member ke paas pehle se issue hai."
+                error = "This member already has this book."
 
         if error is None:
             today = date.today()
             db = get_db()
             cur = db.cursor()
             try:
-                # Copy tabhi ghatao jab available ho (do logo ke ek saath issue karne se bachne ke liye)
+                # Reduce the copy count only if a copy is available (protects against two people issuing the last copy)
                 cur.execute(
                     "UPDATE books SET available_copies = available_copies - 1 "
                     "WHERE book_id = %s AND available_copies > 0", (book_id,))
                 if cur.rowcount == 0:
                     db.rollback()
-                    error = "Is book ki koi copy available nahi hai."
+                    error = "No copy of this book is available."
                 else:
                     cur.execute(
                         "INSERT INTO issues (user_id, book_id, issue_date, due_date) VALUES (%s, %s, %s, %s)",
@@ -120,7 +154,7 @@ def issue_book():
                 cur.close()
 
         if error is None:
-            flash("Book issue ho gayi. Due date: %s" % (date.today() + timedelta(days=days)).isoformat(), "success")
+            flash("Book issued. Due on %s." % (date.today() + timedelta(days=days)).isoformat(), "success")
             return redirect(url_for("issues.list_issues"))
         flash(error, "danger")
 
@@ -139,7 +173,7 @@ def return_book(issue_id):
     if issue is None:
         abort(404)
     if issue["return_date"] is not None:
-        flash("Ye book pehle hi return ho chuki hai.", "warning")
+        flash("This book has already been returned.", "warning")
         return redirect(url_for("issues.list_issues"))
 
     late_days, fine = overdue_info(issue["due_date"])
@@ -160,7 +194,7 @@ def return_book(issue_id):
         cur.close()
 
     if fine > 0:
-        flash("Book return ho gayi. %d din late, fine Rs. %d." % (late_days, fine), "warning")
+        flash("Book returned. %s late, fine Rs. %d." % (plural(late_days, "day"), fine), "warning")
     else:
-        flash("Book return ho gayi. Koi fine nahi.", "success")
+        flash("Book returned. No fine.", "success")
     return redirect(url_for("issues.list_issues"))

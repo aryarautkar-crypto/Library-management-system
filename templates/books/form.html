@@ -1,44 +1,48 @@
 {% extends "base.html" %}
 {% block title %}{{ heading }}{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-7">
-    <div class="card shadow-sm">
-      <div class="card-body p-4">
-        <h4 class="mb-3">{{ heading }}</h4>
-        <form method="post">
-          <div class="mb-3">
-            <label class="form-label">Title *</label>
-            <input type="text" name="title" class="form-control" maxlength="200"
-                   value="{{ book['title'] if book else '' }}" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Author *</label>
-            <input type="text" name="author" class="form-control" maxlength="120"
-                   value="{{ book['author'] if book else '' }}" required>
-          </div>
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label class="form-label">ISBN</label>
-              <input type="text" name="isbn" class="form-control" maxlength="20"
-                     value="{{ (book['isbn'] or '') if book else '' }}">
-            </div>
-            <div class="col-md-6 mb-3">
-              <label class="form-label">Category</label>
-              <input type="text" name="category" class="form-control" maxlength="60"
-                     value="{{ (book['category'] or '') if book else '' }}">
-            </div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Total Copies *</label>
-            <input type="number" name="total_copies" class="form-control" min="1"
-                   value="{{ book['total_copies'] if book else 1 }}" required>
-          </div>
-          <button class="btn btn-primary">Save</button>
-          <a href="{{ url_for('books.list_books') }}" class="btn btn-outline-secondary">Cancel</a>
-        </form>
-      </div>
-    </div>
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ heading }}</h1>
+    <p class="page-sub">Fields marked * are required.</p>
   </div>
 </div>
+
+<form method="post" class="panel form-card">
+  <div class="panel-body">
+    <div class="form-grid">
+      <div class="mb-3 span-2">
+        <label class="form-label" for="title">Title *</label>
+        <input type="text" id="title" name="title" class="form-control" maxlength="200"
+               value="{{ book['title'] if book else '' }}" autofocus required>
+      </div>
+      <div class="mb-3 span-2">
+        <label class="form-label" for="author">Author *</label>
+        <input type="text" id="author" name="author" class="form-control" maxlength="120"
+               value="{{ book['author'] if book else '' }}" required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="isbn">ISBN</label>
+        <input type="text" id="isbn" name="isbn" class="form-control" maxlength="20"
+               value="{{ (book['isbn'] or '') if book else '' }}">
+        <div class="field-hint">Optional. Each ISBN can be used once.</div>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="category">Category</label>
+        <input type="text" id="category" name="category" class="form-control" maxlength="60"
+               value="{{ (book['category'] or '') if book else '' }}">
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="total_copies">Total copies *</label>
+        <input type="number" id="total_copies" name="total_copies" class="form-control" min="1"
+               value="{{ book['total_copies'] if book else 1 }}" required>
+        <div class="field-hint">Copies that are on loan stay on loan when you change this.</div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary">Save book</button>
+      <a href="{{ url_for('books.list_books') }}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </div>
+</form>
 {% endblock %}

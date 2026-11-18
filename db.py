@@ -1,12 +1,12 @@
-"""MySQL connection aur chhote helper functions.
-Har module in functions se database use karta hai."""
+"""MySQL connection and small helper functions.
+Every module uses these functions to talk to the database."""
 import mysql.connector
 from flask import g
 import config
 
 
 def get_db():
-    """Ek request ke liye ek MySQL connection deta hai."""
+    """Return the MySQL connection for the current request (created on first use)."""
     if "db" not in g:
         g.db = mysql.connector.connect(
             host=config.DB_HOST,
@@ -19,14 +19,14 @@ def get_db():
 
 
 def close_db(e=None):
-    """Request khatam hone par connection band karta hai."""
+    """Close the connection when the request ends."""
     db = g.pop("db", None)
     if db is not None:
         db.close()
 
 
 def fetch_one(sql, params=()):
-    """Ek row deta hai (dictionary ki tarah), nahi mili to None."""
+    """Return one row as a dictionary, or None if there is no row."""
     cur = get_db().cursor(dictionary=True)
     cur.execute(sql, params)
     row = cur.fetchone()
@@ -35,7 +35,7 @@ def fetch_one(sql, params=()):
 
 
 def fetch_all(sql, params=()):
-    """Saari rows ki list deta hai."""
+    """Return all rows as a list of dictionaries."""
     cur = get_db().cursor(dictionary=True)
     cur.execute(sql, params)
     rows = cur.fetchall()
@@ -44,8 +44,8 @@ def fetch_all(sql, params=()):
 
 
 def execute(sql, params=()):
-    """INSERT / UPDATE / DELETE chalata hai aur save (commit) karta hai.
-    INSERT ke case me naye row ki id return karta hai."""
+    """Run an INSERT, UPDATE or DELETE and commit it.
+    For an INSERT it returns the id of the new row."""
     db = get_db()
     cur = db.cursor()
     cur.execute(sql, params)

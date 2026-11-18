@@ -1,48 +1,58 @@
 {% extends "base.html" %}
 {% block title %}Members{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">Members</h3>
-  <a href="{{ url_for('members.add_member') }}" class="btn btn-success">+ Add Member</a>
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Members</h1>
+    <p class="page-sub">
+      {% if q %}{{ pg.total|plural('result') }} for &ldquo;{{ q }}&rdquo;{% else %}{{ pg.total|plural('member') }} registered{% endif %}
+    </p>
+  </div>
+  <a href="{{ url_for('members.add_member') }}" class="btn btn-primary">Add a member</a>
 </div>
 
-<form method="get" class="row g-2 mb-3">
-  <div class="col-md-8">
-    <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="Name ya email se search karo">
-  </div>
-  <div class="col-md-4">
+<form method="get" class="toolbar">
+  <div class="search">
+    <input type="search" name="q" value="{{ q }}" class="form-control" placeholder="Search by name or email" aria-label="Search members">
     <button class="btn btn-primary">Search</button>
-    {% if q %}<a href="{{ url_for('members.list_members') }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
   </div>
+  {% if q %}<a href="{{ url_for('members.list_members') }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
 </form>
 
-<div class="card">
+<div class="panel">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
-        <tr><th>#</th><th>Name</th><th>Email</th><th>Joined</th><th>Books Issued</th><th>Actions</th></tr>
+        <tr><th>Member</th><th>Joined</th><th>Books on loan</th><th class="text-end">Actions</th></tr>
       </thead>
       <tbody>
         {% for m in members %}
         <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ m['name'] }}</td>
-          <td>{{ m['email'] }}</td>
-          <td>{{ (m['created_at'] | string)[:10] }}</td>
-          <td>{{ m['issued_count'] }}</td>
-          <td class="text-nowrap">
-            <a href="{{ url_for('members.edit_member', user_id=m['user_id']) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-            <form method="post" action="{{ url_for('members.delete_member', user_id=m['user_id']) }}" class="d-inline">
-              <button class="btn btn-sm btn-outline-danger"
-                      data-confirm="Kya aap sach me '{{ m['name'] }}' ko delete karna chahte ho?">Delete</button>
-            </form>
+          <td><div class="cell-title">{{ m['name'] }}</div><div class="cell-sub">{{ m['email'] }}</div></td>
+          <td class="num">{{ (m['created_at'] | string)[:10] }}</td>
+          <td class="num">{{ m['issued_count'] }}</td>
+          <td>
+            <div class="row-actions">
+              <a href="{{ url_for('members.edit_member', user_id=m['user_id']) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+              <form method="post" action="{{ url_for('members.delete_member', user_id=m['user_id']) }}">
+                <button class="btn btn-sm btn-outline-danger"
+                        data-confirm="Delete member &quot;{{ m['name'] }}&quot;? This cannot be undone.">Delete</button>
+              </form>
+            </div>
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-center text-muted py-4">Koi member nahi mila.</td></tr>
+        <tr><td colspan="4" class="empty">
+          {% if q %}
+            <strong>No members match &ldquo;{{ q }}&rdquo;</strong>Check the spelling, or search by email instead.
+          {% else %}
+            <strong>No members yet</strong><a href="{{ url_for('members.add_member') }}">Add a member</a>, or ask students to create their own account.
+          {% endif %}
+        </td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+{% include "_pager.html" %}
 {% endblock %}

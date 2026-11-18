@@ -1,67 +1,73 @@
 {% extends "base.html" %}
-{% block title %}Issues{% endblock %}
+{% block title %}Loans{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">{% if g.user['role'] == 'admin' %}Issued Books{% else %}Meri Issue History{% endif %}</h3>
-  {% if g.user['role'] == 'admin' %}
-    <a href="{{ url_for('issues.issue_book') }}" class="btn btn-success">+ Issue a Book</a>
-  {% endif %}
+{% set admin = g.user['role'] == 'admin' %}
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{% if admin %}Loans{% else %}My loans{% endif %}</h1>
+    <p class="page-sub">Late returns are charged Rs. {{ fine_per_day }} for each day after the due date.</p>
+  </div>
+  {% if admin %}<a href="{{ url_for('issues.issue_book') }}" class="btn btn-primary">Issue a book</a>{% endif %}
 </div>
 
-<div class="mb-3">
-  {% for key, label in [('all', 'All'), ('issued', 'Currently Issued'), ('overdue', 'Overdue'), ('returned', 'Returned')] %}
-    <a href="{{ url_for('issues.list_issues', status=key) }}"
-       class="btn btn-sm {% if status == key %}btn-dark{% else %}btn-outline-dark{% endif %}">{{ label }}</a>
-  {% endfor %}
-  <span class="text-muted ms-2">Fine: Rs. {{ fine_per_day }} per din (due date ke baad)</span>
+<div class="toolbar">
+  <nav class="segmented" aria-label="Filter loans">
+    {% for key, label in [('all', 'All'), ('issued', 'On loan'), ('overdue', 'Overdue'), ('returned', 'Returned')] %}
+      <a href="{{ url_for('issues.list_issues', status=key) }}" class="{% if status == key %}active{% endif %}">{{ label }}<span class="seg-count">{{ counts[key] }}</span></a>
+    {% endfor %}
+  </nav>
 </div>
 
-<div class="card">
+<div class="panel">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
-          <th>#</th>
-          {% if g.user['role'] == 'admin' %}<th>Member</th>{% endif %}
+          {% if admin %}<th>Member</th>{% endif %}
           <th>Book</th><th>Issued</th><th>Due</th><th>Returned</th><th>Status</th><th>Fine</th>
-          {% if g.user['role'] == 'admin' %}<th>Action</th>{% endif %}
+          {% if admin %}<th class="text-end">Action</th>{% endif %}
         </tr>
       </thead>
       <tbody>
         {% for i in issues %}
         <tr>
-          <td>{{ i['issue_id'] }}</td>
-          {% if g.user['role'] == 'admin' %}<td>{{ i['member_name'] }}</td>{% endif %}
-          <td>{{ i['title'] }}</td>
-          <td>{{ i['issue_date'] }}</td>
-          <td>{{ i['due_date'] }}</td>
-          <td>{{ i['return_date'] or '-' }}</td>
+          {% if admin %}<td>{{ i['member_name'] }}</td>{% endif %}
+          <td class="cell-title">{{ i['title'] }}</td>
+          <td class="num">{{ i['issue_date'] }}</td>
+          <td class="num">{{ i['due_date'] }}</td>
+          <td class="num">{{ i['return_date'] or '-' }}</td>
           <td>
-            {% if i['return_date'] %}
-              <span class="badge text-bg-success">Returned</span>
-            {% elif i['is_overdue'] %}
-              <span class="badge text-bg-danger">Overdue ({{ i['late_days'] }} din)</span>
-            {% else %}
-              <span class="badge text-bg-primary">Issued</span>
-            {% endif %}
+            {% if i['return_date'] %}<span class="pill pill-done">Returned</span>
+            {% elif i['is_overdue'] %}<span class="pill pill-late">{{ i['late_days']|plural('day') }} late</span>
+            {% else %}<span class="pill pill-info">On loan</span>{% endif %}
           </td>
-          <td>{% if i['fine_now'] > 0 %}Rs. {{ i['fine_now'] }}{% else %}-{% endif %}</td>
-          {% if g.user['role'] == 'admin' %}
+          <td class="num">{% if i['fine_now'] > 0 %}Rs. {{ i['fine_now'] }}{% else %}-{% endif %}</td>
+          {% if admin %}
           <td>
-            {% if not i['return_date'] %}
-            <form method="post" action="{{ url_for('issues.return_book', issue_id=i['issue_id']) }}">
-              <button class="btn btn-sm btn-outline-success"
-                      data-confirm="'{{ i['title'] }}' return karni hai?">Return</button>
-            </form>
-            {% endif %}
+            <div class="row-actions">
+              {% if not i['return_date'] %}
+              <form method="post" action="{{ url_for('issues.return_book', issue_id=i['issue_id']) }}">
+                <button class="btn btn-sm btn-outline-success"
+                        data-confirm="Mark &quot;{{ i['title'] }}&quot; as returned?">Return</button>
+              </form>
+              {% endif %}
+            </div>
           </td>
           {% endif %}
         </tr>
         {% else %}
-        <tr><td colspan="9" class="text-center text-muted py-4">Koi record nahi mila.</td></tr>
+        <tr><td colspan="8" class="empty">
+          {% if status == 'overdue' %}<strong>Nothing is overdue</strong>Every book on loan is within its due date.
+          {% elif status == 'issued' %}<strong>No books on loan</strong>Books that are issued will appear here until they are returned.
+          {% elif status == 'returned' %}<strong>No returns yet</strong>Returned books will appear here.
+          {% else %}<strong>No loans yet</strong>
+            {% if admin %}<a href="{{ url_for('issues.issue_book') }}">Issue the first book</a> to start the record.{% else %}Ask the librarian to issue a book to you.{% endif %}
+          {% endif %}
+        </td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+{% include "_pager.html" %}
 {% endblock %}

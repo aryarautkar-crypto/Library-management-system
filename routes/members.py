@@ -1,16 +1,18 @@
-"""Module 3: Member Management (sirf admin ke liye): list, search, add, edit, delete."""
+"""Module 3: Member Management (admin only): list, search, add, edit, delete."""
 import mysql.connector
 from flask import (Blueprint, abort, flash, redirect, render_template,
                    request, url_for)
 from werkzeug.security import generate_password_hash
 from db import execute, fetch_all, fetch_one
+from pagination import paginate
 from routes.auth import admin_required
+from validators import valid_email
 
 members_bp = Blueprint("members", __name__, url_prefix="/members")
 
 
 def read_member_form(password_required):
-    """Form ka data leta hai aur check karta hai. (data, error) return karta hai."""
+    """Read the form and validate it. Returns (data, error)."""
     data = {
         "name": request.form.get("name", "").strip(),
         "email": request.form.get("email", "").strip().lower(),
@@ -18,29 +20,40 @@ def read_member_form(password_required):
     }
     error = None
     if not data["name"] or not data["email"]:
-        error = "Name aur Email bharna zaroori hai."
+        error = "Name and email are required."
+    elif len(data["name"]) > 100:
+        error = "Name must be 100 characters or fewer."
+    elif not valid_email(data["email"]):
+        error = "Please enter a valid email address."
     elif password_required and not data["password"]:
-        error = "Password bharna zaroori hai."
+        error = "Password is required."
     elif data["password"] and len(data["password"]) < 6:
-        error = "Password kam se kam 6 characters ka hona chahiye."
+        error = "Password must be at least 6 characters."
+    elif len(data["password"]) > 128:
+        error = "Password must be 128 characters or fewer."
     return data, error
 
 
 @members_bp.route("/")
 @admin_required
 def list_members():
-    q = request.args.get("q", "").strip()
+    q = request.args.get("q", "").strip()[:100]
     like = "%" + q + "%"
+    total = fetch_one(
+        "SELECT COUNT(*) AS total FROM users u WHERE u.role = 'member' AND (u.name LIKE %s OR u.email LIKE %s)",
+        (like, like),
+    )["total"]
+    pg = paginate(total)
     members = fetch_all(
         """SELECT u.user_id, u.name, u.email, u.created_at,
                   (SELECT COUNT(*) FROM issues i
                    WHERE i.user_id = u.user_id AND i.return_date IS NULL) AS issued_count
            FROM users u
            WHERE u.role = 'member' AND (u.name LIKE %s OR u.email LIKE %s)
-           ORDER BY u.name""",
-        (like, like),
+           ORDER BY u.name LIMIT %s OFFSET %s""",
+        (like, like, pg.per_page, pg.offset),
     )
-    return render_template("members/list.html", members=members, q=q)
+    return render_template("members/list.html", members=members, q=q, pg=pg)
 
 
 @members_bp.route("/add", methods=["GET", "POST"])
@@ -56,12 +69,12 @@ def add_member():
                     (member["name"], member["email"], generate_password_hash(member["password"])),
                 )
             except mysql.connector.IntegrityError:
-                error = "Ye email pehle se registered hai."
+                error = "That email is already registered."
             else:
-                flash("Member add ho gaya.", "success")
+                flash("Member added.", "success")
                 return redirect(url_for("members.list_members"))
         flash(error, "danger")
-    return render_template("members/form.html", member=member, heading="Add New Member", editing=False)
+    return render_template("members/form.html", member=member, heading="Add a member", editing=False)
 
 
 @members_bp.route("/<int:user_id>/edit", methods=["GET", "POST"])
@@ -82,14 +95,14 @@ def edit_member(user_id):
                     execute("UPDATE users SET name=%s, email=%s WHERE user_id=%s",
                             (data["name"], data["email"], user_id))
             except mysql.connector.IntegrityError:
-                error = "Ye email kisi aur member ka hai."
+                error = "Another member already uses this email."
             else:
-                flash("Member update ho gaya.", "success")
+                flash("Member updated.", "success")
                 return redirect(url_for("members.list_members"))
         flash(error, "danger")
         member = data
 
-    return render_template("members/form.html", member=member, heading="Edit Member", editing=True)
+    return render_template("members/form.html", member=member, heading="Edit member", editing=True)
 
 
 @members_bp.route("/<int:user_id>/delete", methods=["POST"])
@@ -101,8 +114,8 @@ def delete_member(user_id):
 
     used = fetch_one("SELECT COUNT(*) AS total FROM issues WHERE user_id = %s", (user_id,))["total"]
     if used > 0:
-        flash("Is member ke issue records maujood hain, isliye delete nahi ho sakta.", "danger")
+        flash("This member cannot be deleted because they have loan records.", "danger")
     else:
         execute("DELETE FROM users WHERE user_id = %s AND role = 'member'", (user_id,))
-        flash("Member delete ho gaya.", "info")
+        flash("Member deleted.", "info")
     return redirect(url_for("members.list_members"))

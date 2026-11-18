@@ -1,31 +1,39 @@
 {% extends "base.html" %}
 {% block title %}{{ heading }}{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-md-6">
-    <div class="card shadow-sm">
-      <div class="card-body p-4">
-        <h4 class="mb-3">{{ heading }}</h4>
-        <form method="post">
-          <div class="mb-3">
-            <label class="form-label">Full Name *</label>
-            <input type="text" name="name" class="form-control" maxlength="100"
-                   value="{{ member['name'] if member else '' }}" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Email *</label>
-            <input type="email" name="email" class="form-control" maxlength="120"
-                   value="{{ member['email'] if member else '' }}" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Password {% if editing %}(khaali chhodo to purana hi rahega){% else %}* (min 6 characters){% endif %}</label>
-            <input type="password" name="password" class="form-control" {% if not editing %}required{% endif %}>
-          </div>
-          <button class="btn btn-primary">Save</button>
-          <a href="{{ url_for('members.list_members') }}" class="btn btn-outline-secondary">Cancel</a>
-        </form>
-      </div>
-    </div>
+<div class="page-head">
+  <div>
+    <h1 class="page-title">{{ heading }}</h1>
+    <p class="page-sub">Fields marked * are required.</p>
   </div>
 </div>
+
+<form method="post" class="panel form-card">
+  <div class="panel-body">
+    <div class="form-grid">
+      <div class="mb-3">
+        <label class="form-label" for="name">Full name *</label>
+        <input type="text" id="name" name="name" class="form-control" maxlength="100"
+               value="{{ member['name'] if member else '' }}" autofocus required>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="email">Email *</label>
+        <input type="email" id="email" name="email" class="form-control" maxlength="120"
+               value="{{ member['email'] if member else '' }}" required>
+      </div>
+      <div class="mb-3 span-2">
+        <label class="form-label" for="password">Password{% if not editing %} *{% endif %}</label>
+        <input type="password" id="password" name="password" class="form-control"
+               autocomplete="new-password" {% if not editing %}required{% endif %}>
+        <div class="field-hint">
+          {% if editing %}Leave empty to keep the current password.{% else %}At least 6 characters.{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary">Save member</button>
+      <a href="{{ url_for('members.list_members') }}" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+  </div>
+</form>
 {% endblock %}

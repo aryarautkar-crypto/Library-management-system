@@ -1,64 +1,74 @@
 {% extends "base.html" %}
 {% block title %}Books{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <h3 class="mb-0">Books</h3>
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Books</h1>
+    <p class="page-sub">
+      {% if q %}{{ pg.total|plural('result') }} for &ldquo;{{ q }}&rdquo;{% else %}{{ pg.total|plural('book') }} in the catalogue{% endif %}
+    </p>
+  </div>
   {% if g.user['role'] == 'admin' %}
-    <a href="{{ url_for('books.add_book') }}" class="btn btn-success">+ Add Book</a>
+    <a href="{{ url_for('books.add_book') }}" class="btn btn-primary">Add a book</a>
   {% endif %}
 </div>
 
-<form method="get" class="row g-2 mb-3">
-  <div class="col-md-8">
-    <input type="text" name="q" value="{{ q }}" class="form-control"
-           placeholder="Title, author, ISBN ya category se search karo">
-  </div>
-  <div class="col-md-4">
+<form method="get" class="toolbar">
+  <div class="search">
+    <input type="search" name="q" value="{{ q }}" class="form-control"
+           placeholder="Search by title, author, ISBN or category" aria-label="Search books">
     <button class="btn btn-primary">Search</button>
-    {% if q %}<a href="{{ url_for('books.list_books') }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
   </div>
+  {% if q %}<a href="{{ url_for('books.list_books') }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
 </form>
 
-<div class="card">
+<div class="panel">
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light">
         <tr>
-          <th>#</th><th>Title</th><th>Author</th><th>ISBN</th><th>Category</th>
-          <th>Available</th>
-          {% if g.user['role'] == 'admin' %}<th>Actions</th>{% endif %}
+          <th>Book</th><th>Category</th><th>ISBN</th><th>Availability</th>
+          {% if g.user['role'] == 'admin' %}<th class="text-end">Actions</th>{% endif %}
         </tr>
       </thead>
       <tbody>
         {% for b in books %}
         <tr>
-          <td>{{ loop.index }}</td>
-          <td>{{ b['title'] }}</td>
-          <td>{{ b['author'] }}</td>
-          <td>{{ b['isbn'] or '-' }}</td>
+          <td><div class="cell-title">{{ b['title'] }}</div><div class="cell-sub">{{ b['author'] }}</div></td>
           <td>{{ b['category'] or '-' }}</td>
+          <td class="num">{{ b['isbn'] or '-' }}</td>
           <td>
             {% if b['available_copies'] > 0 %}
-              <span class="badge text-bg-success">{{ b['available_copies'] }} / {{ b['total_copies'] }}</span>
+              <span class="pill pill-ok">{{ b['available_copies'] }} of {{ b['total_copies'] }} available</span>
             {% else %}
-              <span class="badge text-bg-danger">Not available</span>
+              <span class="pill pill-late">All {{ b['total_copies'] }} on loan</span>
             {% endif %}
           </td>
           {% if g.user['role'] == 'admin' %}
-          <td class="text-nowrap">
-            <a href="{{ url_for('books.edit_book', book_id=b['book_id']) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-            <form method="post" action="{{ url_for('books.delete_book', book_id=b['book_id']) }}" class="d-inline">
-              <button class="btn btn-sm btn-outline-danger"
-                      data-confirm="Kya aap sach me '{{ b['title'] }}' delete karna chahte ho?">Delete</button>
-            </form>
+          <td>
+            <div class="row-actions">
+              <a href="{{ url_for('books.edit_book', book_id=b['book_id']) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+              <form method="post" action="{{ url_for('books.delete_book', book_id=b['book_id']) }}">
+                <button class="btn btn-sm btn-outline-danger"
+                        data-confirm="Delete &quot;{{ b['title'] }}&quot;? This cannot be undone.">Delete</button>
+              </form>
+            </div>
           </td>
           {% endif %}
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted py-4">Koi book nahi mili.</td></tr>
+        <tr><td colspan="5" class="empty">
+          {% if q %}
+            <strong>No books match &ldquo;{{ q }}&rdquo;</strong>Try a shorter word, or search by author instead.
+          {% else %}
+            <strong>The catalogue is empty</strong>
+            {% if g.user['role'] == 'admin' %}<a href="{{ url_for('books.add_book') }}">Add the first book</a> to get started.{% else %}Books will appear here once the librarian adds them.{% endif %}
+          {% endif %}
+        </td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </div>
+{% include "_pager.html" %}
 {% endblock %}

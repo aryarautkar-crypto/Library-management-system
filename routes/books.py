@@ -1,16 +1,20 @@
 """Module 2: Book Management (list + search, add, edit, delete).
-Books dekhna/search karna: sab logged-in users. Add/Edit/Delete: sirf admin."""
+Viewing and searching books: any signed-in user. Add, edit and delete: admin only."""
 import mysql.connector
 from flask import (Blueprint, abort, flash, redirect, render_template,
                    request, url_for)
 from db import execute, fetch_all, fetch_one
+from pagination import paginate
 from routes.auth import admin_required, login_required
+from validators import valid_isbn
 
 books_bp = Blueprint("books", __name__, url_prefix="/books")
 
+MAX_COPIES = 1000
+
 
 def read_book_form():
-    """Form se data leta hai aur check karta hai. (data, error) return karta hai."""
+    """Read the form and validate it. Returns (data, error)."""
     data = {
         "title": request.form.get("title", "").strip(),
         "author": request.form.get("author", "").strip(),
@@ -20,14 +24,24 @@ def read_book_form():
     }
     error = None
     if not data["title"] or not data["author"]:
-        error = "Title aur Author bharna zaroori hai."
+        error = "Title and author are required."
+    elif len(data["title"]) > 200:
+        error = "Title must be 200 characters or fewer."
+    elif len(data["author"]) > 120:
+        error = "Author must be 120 characters or fewer."
+    elif len(data["category"]) > 60:
+        error = "Category must be 60 characters or fewer."
+    elif not valid_isbn(data["isbn"]):
+        error = "ISBN must have 10 to 20 characters (digits, hyphens or X)."
     else:
         try:
             data["total_copies"] = int(data["total_copies"])
             if data["total_copies"] < 1:
-                error = "Copies kam se kam 1 honi chahiye."
+                error = "There must be at least 1 copy."
+            elif data["total_copies"] > MAX_COPIES:
+                error = "Total copies cannot be more than %d." % MAX_COPIES
         except ValueError:
-            error = "Copies ki jagah number likho."
+            error = "Total copies must be a number."
     return data, error
 
 
@@ -35,18 +49,20 @@ def read_book_form():
 @books_bp.route("/")
 @login_required
 def list_books():
-    q = request.args.get("q", "").strip()
+    q = request.args.get("q", "").strip()[:100]
+    where, params = "", ()
     if q:
         like = "%" + q + "%"
-        books = fetch_all(
-            """SELECT * FROM books
-               WHERE title LIKE %s OR author LIKE %s OR isbn LIKE %s OR category LIKE %s
-               ORDER BY title""",
-            (like, like, like, like),
-        )
-    else:
-        books = fetch_all("SELECT * FROM books ORDER BY title")
-    return render_template("books/list.html", books=books, q=q)
+        where = "WHERE title LIKE %s OR author LIKE %s OR isbn LIKE %s OR category LIKE %s"
+        params = (like, like, like, like)
+
+    total = fetch_one("SELECT COUNT(*) AS total FROM books " + where, params)["total"]
+    pg = paginate(total)
+    books = fetch_all(
+        "SELECT * FROM books " + where + " ORDER BY title LIMIT %s OFFSET %s",
+        params + (pg.per_page, pg.offset),
+    )
+    return render_template("books/list.html", books=books, q=q, pg=pg)
 
 
 # ---------- Add ----------
@@ -65,12 +81,12 @@ def add_book():
                      book["category"] or None, book["total_copies"], book["total_copies"]),
                 )
             except mysql.connector.IntegrityError:
-                error = "Is ISBN ki book pehle se maujood hai."
+                error = "A book with this ISBN already exists."
             else:
-                flash("Book add ho gayi.", "success")
+                flash("Book added.", "success")
                 return redirect(url_for("books.list_books"))
         flash(error, "danger")
-    return render_template("books/form.html", book=book, heading="Add New Book")
+    return render_template("books/form.html", book=book, heading="Add a book")
 
 
 # ---------- Edit ----------
@@ -84,10 +100,10 @@ def edit_book(book_id):
     if request.method == "POST":
         data, error = read_book_form()
         if error is None:
-            # Kitni copies abhi issue hain: total - available
+            # Copies currently on loan: total - available
             issued = book["total_copies"] - book["available_copies"]
             if data["total_copies"] < issued:
-                error = "Abhi %d copies issue hain, total copies isse kam nahi ho sakti." % issued
+                error = "%d copies are on loan, so total copies cannot be lower than that." % issued
             else:
                 try:
                     execute(
@@ -99,14 +115,14 @@ def edit_book(book_id):
                          data["total_copies"] - issued, book_id),
                     )
                 except mysql.connector.IntegrityError:
-                    error = "Is ISBN ki dusri book pehle se maujood hai."
+                    error = "Another book already uses this ISBN."
                 else:
-                    flash("Book update ho gayi.", "success")
+                    flash("Book updated.", "success")
                     return redirect(url_for("books.list_books"))
         flash(error, "danger")
-        book = data  # galti hone par user ka likha hua data form me wapas dikhao
+        book = data  # on an error, show what the user typed back in the form
 
-    return render_template("books/form.html", book=book, heading="Edit Book")
+    return render_template("books/form.html", book=book, heading="Edit book")
 
 
 # ---------- Delete ----------
@@ -119,8 +135,8 @@ def delete_book(book_id):
 
     used = fetch_one("SELECT COUNT(*) AS total FROM issues WHERE book_id = %s", (book_id,))["total"]
     if used > 0:
-        flash("Ye book delete nahi ho sakti, kyunki iska issue record maujood hai.", "danger")
+        flash("This book cannot be deleted because it has loan records.", "danger")
     else:
         execute("DELETE FROM books WHERE book_id = %s", (book_id,))
-        flash("Book delete ho gayi.", "info")
+        flash("Book deleted.", "info")
     return redirect(url_for("books.list_books"))

@@ -5,30 +5,31 @@ from flask import (Blueprint, flash, g, redirect, render_template,
                    request, session, url_for)
 from werkzeug.security import check_password_hash, generate_password_hash
 from db import execute, fetch_one
+from validators import valid_email
 
 auth_bp = Blueprint("auth", __name__)
 
 
-# ---------- Decorators: pages ko protect karne ke liye ----------
+# ---------- Decorators that protect pages ----------
 def login_required(view):
-    """Login ke bina page nahi khulega."""
+    """The page opens only for a signed-in user."""
     @functools.wraps(view)
     def wrapped(*args, **kwargs):
         if g.user is None:
-            flash("Pehle login karo.", "warning")
+            flash("Please sign in to continue.", "warning")
             return redirect(url_for("auth.login"))
         return view(*args, **kwargs)
     return wrapped
 
 
 def admin_required(view):
-    """Sirf librarian (admin) ke liye."""
+    """The page opens only for the librarian (admin)."""
     @functools.wraps(view)
     def wrapped(*args, **kwargs):
         if g.user is None:
             return redirect(url_for("auth.login"))
         if g.user["role"] != "admin":
-            flash("Ye page sirf admin ke liye hai.", "danger")
+            flash("That page is for the librarian only.", "danger")
             return redirect(url_for("dashboard"))
         return view(*args, **kwargs)
     return wrapped
@@ -36,7 +37,7 @@ def admin_required(view):
 
 @auth_bp.before_app_request
 def load_logged_in_user():
-    """Har request par check karta hai ki kaun login hai."""
+    """Before every request, find out who is signed in."""
     user_id = session.get("user_id")
     g.user = None
     if user_id is not None:
@@ -54,9 +55,15 @@ def register():
         # Validation
         error = None
         if not name or not email or not password:
-            error = "Saari fields bharna zaroori hai."
+            error = "Please fill in all fields."
+        elif len(name) > 100:
+            error = "Name must be 100 characters or fewer."
+        elif not valid_email(email):
+            error = "Please enter a valid email address."
         elif len(password) < 6:
-            error = "Password kam se kam 6 characters ka hona chahiye."
+            error = "Password must be at least 6 characters."
+        elif len(password) > 128:
+            error = "Password must be 128 characters or fewer."
 
         if error is None:
             try:
@@ -65,9 +72,9 @@ def register():
                     (name, email, generate_password_hash(password)),
                 )
             except mysql.connector.IntegrityError:
-                error = "Ye email pehle se registered hai."
+                error = "That email is already registered."
             else:
-                flash("Registration ho gaya! Ab login karo.", "success")
+                flash("Account created. You can sign in now.", "success")
                 return redirect(url_for("auth.login"))
 
         flash(error, "danger")
@@ -84,7 +91,7 @@ def login():
         user = fetch_one("SELECT * FROM users WHERE email = %s", (email,))
 
         if user is None or not check_password_hash(user["password_hash"], password):
-            flash("Email ya password galat hai.", "danger")
+            flash("Email or password is incorrect.", "danger")
         else:
             session.clear()
             session["user_id"] = user["user_id"]
@@ -96,5 +103,5 @@ def login():
 @auth_bp.route("/logout")
 def logout():
     session.clear()
-    flash("Logout ho gaye.", "info")
+    flash("You have been signed out.", "info")
     return redirect(url_for("auth.login"))

@@ -1,4 +1,4 @@
--- Testing ke liye dummy books
+-- Sample books for testing
 USE library_db;
 
 INSERT INTO books (title, author, isbn, category, total_copies, available_copies) VALUES

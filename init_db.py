@@ -1,5 +1,5 @@
-"""Ek baar chalao:  python init_db.py
-Ye MySQL me library_db database, tables, dummy books aur default admin banata hai."""
+"""Run once:  python init_db.py
+Creates the library_db database in MySQL with its tables, sample books and the default admin."""
 import os
 import mysql.connector
 from werkzeug.security import generate_password_hash
@@ -9,7 +9,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def run_sql_file(cursor, filename):
-    """SQL file ko padh kar ek-ek statement chalata hai."""
+    """Read an SQL file and run its statements one by one."""
     with open(os.path.join(BASE_DIR, filename), encoding="utf-8") as f:
         lines = [l for l in f.read().splitlines() if not l.strip().startswith("--")]
     for statement in "\n".join(lines).split(";"):
@@ -24,8 +24,8 @@ def main():
             user=config.DB_USER, password=config.DB_PASSWORD,
         )
     except mysql.connector.Error as err:
-        print("MySQL se connect nahi ho paya:", err)
-        print("Check karo: 1) MySQL server start hai?  2) config.py me user/password sahi hai?")
+        print("Could not connect to MySQL:", err)
+        print("Check that 1) the MySQL server is running and 2) the user and password in config.py are correct.")
         return
 
     cur = conn.cursor()

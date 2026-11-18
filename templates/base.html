@@ -3,48 +3,80 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script>
+    /* Apply the saved theme (or the system theme) before the page is drawn */
+    (function () {
+      var theme = "light";
+      try {
+        theme = localStorage.getItem("theme") ||
+                (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      } catch (e) {}
+      document.documentElement.setAttribute("data-bs-theme", theme);
+    })();
+  </script>
   <title>{% block title %}Library Management{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231e4d45'/%3E%3Crect x='7' y='8' width='5' height='16' rx='1' fill='%23fff'/%3E%3Crect x='14' y='6' width='5' height='18' rx='1' fill='%23b8862b'/%3E%3Crect x='21' y='10' width='5' height='14' rx='1' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,500;7..72,600;7..72,700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css', v=asset_version) }}" rel="stylesheet">
 </head>
-<body class="bg-light">
+<body>
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-  <div class="container">
-    <a class="navbar-brand" href="{{ url_for('dashboard') }}">Library Management</a>
+{% set ep = request.endpoint or '' %}
+<header class="app-bar">
+  <div class="container app-bar-inner">
+    <a class="brand" href="{{ url_for('dashboard') }}">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+        <rect x="3" y="7" width="7" height="20" rx="1.5" fill="#fff"/>
+        <rect x="12.5" y="4" width="7" height="23" rx="1.5" fill="#b8862b"/>
+        <rect x="22" y="9" width="7" height="18" rx="1.5" fill="#fff" opacity=".85"/>
+      </svg>
+      Library Management
+    </a>
+
     {% if g.user %}
-    <div class="me-auto">
-      <a class="nav-link d-inline text-white me-3" href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a class="nav-link d-inline text-white me-3" href="{{ url_for('books.list_books') }}">Books</a>
-      <a class="nav-link d-inline text-white me-3" href="{{ url_for('issues.list_issues') }}">{% if g.user['role'] == 'admin' %}Issues{% else %}My Issues{% endif %}</a>
+    <nav class="app-nav" aria-label="Main">
+      <a href="{{ url_for('dashboard') }}" class="{% if ep == 'dashboard' %}active{% endif %}">Dashboard</a>
+      <a href="{{ url_for('books.list_books') }}" class="{% if ep.startswith('books.') %}active{% endif %}">Books</a>
+      <a href="{{ url_for('issues.list_issues') }}" class="{% if ep.startswith('issues.') %}active{% endif %}">{% if g.user['role'] == 'admin' %}Loans{% else %}My loans{% endif %}</a>
       {% if g.user['role'] == 'admin' %}
-      <a class="nav-link d-inline text-white me-3" href="{{ url_for('members.list_members') }}">Members</a>
-      <a class="nav-link d-inline text-white me-3" href="{{ url_for('reports.reports') }}">Reports</a>
+      <a href="{{ url_for('members.list_members') }}" class="{% if ep.startswith('members.') %}active{% endif %}">Members</a>
+      <a href="{{ url_for('reports.reports') }}" class="{% if ep.startswith('reports.') %}active{% endif %}">Reports</a>
       {% endif %}
+    </nav>
+    <div class="app-user">
+      <a class="who" href="{{ url_for('profile.profile') }}">{{ g.user['name'] }} <small>({{ g.user['role'] }})</small></a>
+      <a class="bar-btn" href="{{ url_for('auth.logout') }}">Log out</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Switch to dark theme" title="Switch to dark theme">
+        <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+    {% else %}
+    <div class="app-user">
+      <a class="bar-btn" href="{{ url_for('auth.login') }}">Sign in</a>
+      <a class="bar-btn solid" href="{{ url_for('auth.register') }}">Create account</a>
+      <button type="button" id="themeToggle" class="theme-toggle" aria-label="Switch to dark theme" title="Switch to dark theme">
+        <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
     </div>
     {% endif %}
-    <div class="text-white {% if not g.user %}ms-auto{% endif %}">
-      {% if g.user %}
-        <a class="text-white me-3" href="{{ url_for('profile.profile') }}">{{ g.user['name'] }} ({{ g.user['role'] }})</a>
-        <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.logout') }}">Logout</a>
-      {% else %}
-        <a class="btn btn-outline-light btn-sm" href="{{ url_for('auth.login') }}">Login</a>
-        <a class="btn btn-light btn-sm" href="{{ url_for('auth.register') }}">Register</a>
-      {% endif %}
-    </div>
   </div>
-</nav>
+</header>
 
-<div class="container mt-4 mb-5">
+<main class="container page">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% for category, message in messages %}
-      <div class="alert alert-{{ category }}">{{ message }}</div>
+      <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
     {% endfor %}
   {% endwith %}
 
   {% block content %}{% endblock %}
-</div>
+</main>
 
-<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js', v=asset_version) }}"></script>
 </body>
 </html>
