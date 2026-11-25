@@ -4,12 +4,13 @@ import os
 import re
 import mysql.connector
 import config
+from db import connection_settings
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def connect(db_name=None):
-    settings = dict(host=config.DB_HOST, port=config.DB_PORT, user=config.DB_USER, password=config.DB_PASSWORD)
+    settings = connection_settings(include_database=False)
     if db_name:
         settings["database"] = db_name
     return mysql.connector.connect(**settings)

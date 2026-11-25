@@ -2,6 +2,7 @@
 import re
 import mysql.connector
 import config
+from db import connection_settings
 
 
 class ConfigError(Exception):
@@ -23,6 +24,8 @@ def check_config():
         problems.append("DB_NAME may contain only letters, digits and underscores (at most 64 characters).")
     if len(str(config.SECRET_KEY or "")) < 8:
         problems.append("SECRET_KEY is missing or too short (use at least 8 characters).")
+    if config.IS_CLOUD and config.SECRET_KEY == config.DEFAULT_SECRET_KEY:
+        problems.append("SECRET_KEY must be changed from the default value when the app runs in the cloud.")
     if problems:
         raise ConfigError(problems)
 
@@ -30,10 +33,7 @@ def check_config():
 def check_database():
     """Try to connect to MySQL. Returns (ok, message)."""
     try:
-        conn = mysql.connector.connect(
-            host=config.DB_HOST, port=config.DB_PORT, user=config.DB_USER,
-            password=config.DB_PASSWORD, database=config.DB_NAME, connection_timeout=5,
-        )
+        conn = mysql.connector.connect(**connection_settings(), connection_timeout=5)
         conn.close()
         return True, "Database connection OK."
     except mysql.connector.Error as err:

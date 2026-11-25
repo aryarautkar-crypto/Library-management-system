@@ -1,4 +1,5 @@
 """Unit tests: small pieces of logic, tested on their own (no database needed)."""
+import sys
 import unittest
 from datetime import date, datetime, timedelta
 from unittest import mock
@@ -6,6 +7,7 @@ from unittest import mock
 import mysql.connector
 
 import config
+import db
 import pagination
 import startup_checks
 import validators
@@ -213,6 +215,39 @@ class ConfigCheckTests(unittest.TestCase):
                     ok, message = startup_checks.check_database()
                 self.assertFalse(ok)
                 self.assertIn(expected, message)
+
+
+class DeploymentSettingsTests(unittest.TestCase):
+    def test_local_settings_use_a_plain_connection(self):
+        with mock.patch.object(config, "DB_SSL", False):
+            settings = db.connection_settings()
+        self.assertNotIn("ssl_ca", settings)
+        self.assertEqual(settings["database"], config.DB_NAME)
+
+    def test_cloud_settings_use_an_encrypted_connection(self):
+        fake_certifi = mock.Mock()
+        fake_certifi.where.return_value = "/fake/ca.pem"
+        with mock.patch.object(config, "DB_SSL", True), mock.patch.dict(sys.modules, {"certifi": fake_certifi}):
+            settings = db.connection_settings()
+        self.assertEqual(settings["ssl_ca"], "/fake/ca.pem")
+        self.assertTrue(settings["ssl_verify_cert"])
+
+    def test_the_database_name_can_be_left_out(self):
+        self.assertNotIn("database", db.connection_settings(include_database=False))
+
+    def test_the_cloud_refuses_the_default_secret_key(self):
+        with mock.patch.multiple(config, IS_CLOUD=True, SECRET_KEY=config.DEFAULT_SECRET_KEY):
+            with self.assertRaises(startup_checks.ConfigError) as ctx:
+                startup_checks.check_config()
+        self.assertIn("SECRET_KEY", " ".join(ctx.exception.problems))
+
+    def test_a_real_secret_key_is_accepted_in_the_cloud(self):
+        with mock.patch.multiple(config, IS_CLOUD=True, SECRET_KEY="a-long-random-value-1234"):
+            startup_checks.check_config()           # must not raise
+
+    def test_the_session_cookie_is_protected(self):
+        self.assertTrue(flask_app.config["SESSION_COOKIE_HTTPONLY"])
+        self.assertEqual(flask_app.config["SESSION_COOKIE_SAMESITE"], "Lax")
 
 
 if __name__ == "__main__":

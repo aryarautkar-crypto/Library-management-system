@@ -21,6 +21,13 @@ from startup_checks import ConfigError, check_config, check_database
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 app.config["SEND_FILE_MAX_AGE_DEFAULT"] = timedelta(days=7)   # browsers keep CSS and JS for a week
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,          # JavaScript cannot read the session cookie
+    SESSION_COOKIE_SAMESITE="Lax",         # the cookie is not sent with requests from other sites
+    SESSION_COOKIE_SECURE=config.IS_CLOUD, # in the cloud the cookie travels only over HTTPS
+)
+if config.IS_CLOUD:
+    check_config()                         # in the cloud, wrong settings stop the app with a clear message
 
 app.teardown_appcontext(close_db)
 app.jinja_env.filters["plural"] = plural      # in templates: {{ 3|plural('day') }} -> 3 days

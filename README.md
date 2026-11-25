@@ -1,6 +1,6 @@
 # Library Management System
 
-Milestone 3 (Implementation) and Milestone 4 (Testing and Optimization).
+Milestone 3 (Implementation), Milestone 4 (Testing and Optimization) and Milestone 5 (Deployment and Documentation).
 Stack, as chosen in Milestone 2: HTML, CSS, JavaScript (front end), Python Flask (back end),
 MySQL (database), Git and GitHub (version control).
 
@@ -50,6 +50,10 @@ MySQL must be running. The tests build their own database called `library_test`,
 - Dashboard and report numbers are fetched with one query each
 - CSS and JavaScript are cached by the browser and linked with a version number
 - `python benchmark.py` measures the pages with 10,000 books and 20,000 loans, before and after, and saves `benchmark_results.txt`
+
+## Deployment (Milestone 5)
+`DEPLOY.md` explains both setups: running on your own computer (XAMPP) and putting the application on the internet with
+TiDB Cloud (database) and Render (web server). All settings can be given as environment variables, see the table in `DEPLOY.md`.
 
 ## Folder structure
 - `app.py` is the main application, `config.py` holds the settings, `db.py` handles the MySQL connection

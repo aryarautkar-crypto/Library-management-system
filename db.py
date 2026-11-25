@@ -5,16 +5,23 @@ from flask import g
 import config
 
 
+def connection_settings(include_database=True):
+    """The arguments for mysql.connector.connect, built from config.py.
+    A cloud database needs an encrypted connection (DB_SSL=1)."""
+    settings = dict(host=config.DB_HOST, port=config.DB_PORT, user=config.DB_USER, password=config.DB_PASSWORD)
+    if include_database:
+        settings["database"] = config.DB_NAME
+    if config.DB_SSL:
+        import certifi
+        settings["ssl_ca"] = certifi.where()
+        settings["ssl_verify_cert"] = True
+    return settings
+
+
 def get_db():
     """Return the MySQL connection for the current request (created on first use)."""
     if "db" not in g:
-        g.db = mysql.connector.connect(
-            host=config.DB_HOST,
-            port=config.DB_PORT,
-            user=config.DB_USER,
-            password=config.DB_PASSWORD,
-            database=config.DB_NAME,
-        )
+        g.db = mysql.connector.connect(**connection_settings())
     return g.db
 
 
